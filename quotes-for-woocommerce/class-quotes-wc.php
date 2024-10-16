@@ -28,7 +28,7 @@ if ( ! class_exists( 'Quotes_WC' ) ) {
 		 * @var   string
 		 * @since 1.0.0
 		 */
-		public $version = '2.5';
+		public $version = '2.6';
 
 		/**
 		 * Class instance.
@@ -540,8 +540,9 @@ if ( ! class_exists( 'Quotes_WC' ) ) {
 		public function qwc_cart_widget_prices( $price, $cart_item ) {
 
 			$product_id = apply_filters( 'qwc_cart_check_item_product_id', $cart_item['product_id'], $cart_item );
+			$quantity   = isset( $cart_item['quantity'] ) ? $cart_item['quantity'] : 1;
 
-			$quotes = product_quote_enabled( $product_id );
+			$quotes = product_quote_enabled( $product_id, $quantity );
 
 			if ( $quotes && ! qwc_cart_display_price() ) {
 				$price = '';
@@ -596,7 +597,7 @@ if ( ! class_exists( 'Quotes_WC' ) ) {
 		public function qwc_cart_validations( $passed, $product_id, $qty ) {
 
 			// Check if the product being added is quotable.
-			$product_quotable = product_quote_enabled( $product_id );
+			$product_quotable = product_quote_enabled( $product_id, $qty );
 
 			// Check if the cart contains a product that is quotable.
 			$cart_contains_quotable = cart_contains_quotable();
@@ -635,7 +636,9 @@ if ( ! class_exists( 'Quotes_WC' ) ) {
 
 			if ( ! $needs_payment ) {
 				foreach ( $cart->cart_contents as $cart_item ) {
-					$requires_quotes = product_quote_enabled( $cart_item['product_id'] );
+					$quantity = isset( $cart_item['quantity'] ) ? $cart_item['quantity'] : 1;
+
+					$requires_quotes = product_quote_enabled( $cart_item['product_id'], $quantity );
 
 					if ( $requires_quotes ) {
 						$needs_payment = true;
@@ -890,8 +893,8 @@ if ( ! class_exists( 'Quotes_WC' ) ) {
 			$cart_name = '' === $cart_name ? __( 'Cart', 'quote-wc' ) : $cart_name;
 
 			if ( is_array( $products ) && count( $products ) > 0 ) {
-				foreach ( $products as $product_id => $value ) {
-					if ( product_quote_enabled( $product_id ) ) {
+				foreach ( $products as $product_id => $quantity ) {
+					if ( product_quote_enabled( $product_id, $quantity ) ) {
 						$message = str_replace( 'added to your cart', "added to your $cart_name", $message );
 						$message = str_replace( 'View cart', "View $cart_name", $message );
 						break;
@@ -946,7 +949,8 @@ if ( ! class_exists( 'Quotes_WC' ) ) {
 		 * @since 2.5
 		 */
 		public function qwc_change_proceed_checkout_btn_text() {
-			if ( cart_contains_quotable() ) {
+			$modify_text = apply_filters( 'qwc_modify_proceed_checkout_button_text', true );
+			if ( cart_contains_quotable() && $modify_text ) {
 				remove_action( 'woocommerce_proceed_to_checkout', 'woocommerce_button_proceed_to_checkout', 20 );
 				$proceed_checkout_label = '' === get_option( 'qwc_proceed_checkout_btn_label', '' ) ? __( 'Proceed to Checkout', 'quote-wc' ) : get_option( 'qwc_proceed_checkout_btn_label' );
 				?>
@@ -965,7 +969,22 @@ if ( ! class_exists( 'Quotes_WC' ) ) {
 		 * @since 1.6
 		 */
 		public function cart_needs_shipping( $needs_shipping ) {
-			if ( cart_contains_quotable() && 'on' === get_option( 'qwc_hide_address_fields' ) ) {
+			// Override lite verison shipping removal for quote orders by using this filter.
+			$shipping_choice = apply_filters(
+				'qwc_override_shipping_quotes',
+				array(
+					'override'       => false,
+					'needs_shipping' => $needs_shipping,
+				)
+			);
+			// Override should be returned true, if u want to override the default behaviour.
+			if ( isset( $shipping_choice['override'] ) && $shipping_choice['override'] ) {
+				if ( isset( $shipping_choice['needs_shipping'] ) ) {
+					return $shipping_choice['needs_shipping'];
+				} else {  // if user choice not found after overriding, return as is.
+					return $needs_shipping;
+				}
+			} elseif ( cart_contains_quotable() && 'on' === get_option( 'qwc_hide_address_fields' ) ) { // default, free verison removes shipping for quote orders.
 				return false;
 			} else {
 				return $needs_shipping;
@@ -994,8 +1013,10 @@ if ( ! class_exists( 'Quotes_WC' ) ) {
 					)
 				);
 
-				foreach ( $qwc_hide_fields_list as $field_name ) {
-					unset( $fields[ $field_name ] );
+				if ( is_array( $qwc_hide_fields_list ) && count( $qwc_hide_fields_list ) > 0 ) {
+					foreach ( $qwc_hide_fields_list as $field_name ) {
+						unset( $fields[ $field_name ] );
+					}
 				}
 			}
 
@@ -1024,8 +1045,10 @@ if ( ! class_exists( 'Quotes_WC' ) ) {
 					)
 				);
 
-				foreach ( $qwc_hide_fields_list as $field_name ) {
-					unset( $fields['billing'][ $field_name ] );
+				if ( is_array( $qwc_hide_fields_list ) && count( $qwc_hide_fields_list ) > 0 ) {
+					foreach ( $qwc_hide_fields_list as $field_name ) {
+						unset( $fields['billing'][ $field_name ] );
+					}
 				}
 			}
 

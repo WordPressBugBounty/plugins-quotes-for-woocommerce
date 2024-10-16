@@ -41,7 +41,6 @@ div.wc-block-components-order-summary-item__description span.wc-block-components
 .wc-block-cart-item__prices {
     display: none;
 }
-   
 /* Only for large screens */
 @media (min-width: 700px) {
     .wc-block-cart__sidebar {

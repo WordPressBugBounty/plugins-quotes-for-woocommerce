@@ -10,9 +10,10 @@ use Automattic\WooCommerce\Utilities\OrderUtil;
  * Returns whether quotes are enabled.
  *
  * @param int $product_id - Product ID.
+ * @param int $qty - Product Qty.
  * @return bool $quotes_enabled - Quote Status.
  */
-function product_quote_enabled( $product_id ) {
+function product_quote_enabled( $product_id, $qty = 1 ) {
 	$quote_enabled = false;
 
 	if ( ! is_admin() || wp_doing_ajax() ) {
@@ -22,7 +23,7 @@ function product_quote_enabled( $product_id ) {
 			$quote_enabled = true;
 		}
 	}
-	$quote_enabled = apply_filters( 'qwc_product_quote_enabled', $quote_enabled, $product_id );
+	$quote_enabled = apply_filters( 'qwc_product_quote_enabled', $quote_enabled, $product_id, $qty );
 	return $quote_enabled;
 }
 
@@ -57,7 +58,8 @@ function cart_contains_quotable() {
 				$item['product_id'] = qwc_get_product_id_by_variation_id( $item['variation_id'] );
 			}
 			$product_id    = apply_filters( 'qwc_cart_check_item_product_id', $item['product_id'], $item );
-			$quote_enabled = product_quote_enabled( $product_id );
+			$quantity      = isset( $item['quantity'] ) ? $item['quantity'] : 1;
+			$quote_enabled = product_quote_enabled( $product_id, $quantity );
 
 			if ( $quote_enabled ) {
 				$quotable = true;
@@ -66,7 +68,6 @@ function cart_contains_quotable() {
 		}
 	}
 	return $quotable;
-
 }
 
 /**
@@ -81,7 +82,8 @@ function order_requires_quote( $order ) {
 
 	if ( $order ) {
 		foreach ( $order->get_items() as $item ) {
-			$product_quote = product_quote_enabled( $item['product_id'] );
+			$quantity      = isset( $item['quantity'] ) ? $item['quantity'] : 1;
+			$product_quote = product_quote_enabled( $item['product_id'], $quantity );
 			if ( $product_quote ) {
 				$requires = true;
 				break;
@@ -155,7 +157,6 @@ function qwc_order_display_price( $order ) {
 	}
 
 	return $display;
-
 }
 
 /**
@@ -202,4 +203,57 @@ function qwc_bulk_edit_setting_by_id( $products_list, $quote_setting_name, $quot
 			update_post_meta( $theid, $quote_setting_name, $quote_setting_value );
 		}
 	}
+}
+
+/**
+ * Returns whether the cart contains products with quotes.
+ *
+ * @return bool Cart has quote products or no.
+ * @since 2.6
+ */
+function cart_contains_purchasable() {
+
+	$purchasable = false;
+
+	if ( isset( WC()->cart ) ) {
+		foreach ( WC()->cart->cart_contents as $item ) {
+
+			if ( 0 === $item['product_id'] ) {
+				$item['product_id'] = qwc_get_product_id_by_variation_id( $item['variation_id'] );
+			}
+			$product_id    = apply_filters( 'qwc_cart_check_item_product_id', $item['product_id'], $item );
+			$quantity      = isset( $item['quantity'] ) ? $item['quantity'] : 1;
+			$quote_enabled = product_quote_enabled( $product_id, $quantity );
+
+			if ( ! $quote_enabled ) {
+				$purchasable = true;
+				break;
+			}
+		}
+	}
+	return $purchasable;
+}
+
+/**
+ * Returns whether order contains non-quote (purchase) products or no.
+ *
+ * @param object $order - WC_Order.
+ * @return bool|false - Order contains quot products | false when no data found.
+ */
+function order_contains_purchase( $order ) {
+
+	$purchasable = false;
+
+	if ( $order ) {
+		foreach ( $order->get_items() as $item ) {
+			$quantity      = isset( $item['quantity'] ) ? $item['quantity'] : 1;
+			$product_quote = product_quote_enabled( $item['product_id'], $quantity );
+			if ( ! $product_quote ) {
+				$purchasable = true;
+				break;
+			}
+		}
+	}
+
+	return $purchasable;
 }
