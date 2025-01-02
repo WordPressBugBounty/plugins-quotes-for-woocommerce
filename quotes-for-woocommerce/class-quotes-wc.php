@@ -5,8 +5,6 @@
  * @package Quotes For WooCommerce
  */
 
-load_plugin_textdomain( 'quote-wc', false, basename( dirname( __FILE__ ) ) . '/languages' );
-
 if ( ! class_exists( 'Quotes_WC' ) ) {
 
 	/**
@@ -28,7 +26,7 @@ if ( ! class_exists( 'Quotes_WC' ) ) {
 		 * @var   string
 		 * @since 1.0.0
 		 */
-		public $version = '2.6';
+		public $version = '2.7';
 
 		/**
 		 * Class instance.
@@ -226,6 +224,9 @@ if ( ! class_exists( 'Quotes_WC' ) ) {
 		 * @since 1.0
 		 */
 		public function qwc_include_files() {
+			// Load plugin text domain.
+			load_plugin_textdomain( 'quote-wc', false, basename( __DIR__ ) . '/languages' );
+			// Include the files.
 			include_once WP_PLUGIN_DIR . '/quotes-for-woocommerce/includes/class-quotes-payment-gateway.php';
 			include_once WP_PLUGIN_DIR . '/quotes-for-woocommerce/includes/class-qwc-email-manager.php';
 		}
@@ -301,11 +302,18 @@ if ( ! class_exists( 'Quotes_WC' ) ) {
 
 			global $post;
 			$post_id = $post->ID;
-			// check if setting is enabled.
-			$enable_quote = product_quote_enabled( $post_id );
+			if ( $post_id > 0 ) {
+				$product = wc_get_product( $post_id );
+				if ( $product ) {
+					// check product price.
+					$purchasable = $product->is_purchasable();
+					// check if setting is enabled.
+					$enable_quote = product_quote_enabled( $post_id );
 
-			if ( $enable_quote ) {
-				$cart_text = '' === get_option( 'qwc_add_to_cart_button_text', '' ) ? esc_html__( 'Request Quote', 'quote-wc' ) : __( get_option( 'qwc_add_to_cart_button_text' ), 'quote-wc' ); // phpcs:ignore
+					if ( $enable_quote && $purchasable ) {
+						$cart_text = '' === get_option( 'qwc_add_to_cart_button_text', '' ) ? esc_html__( 'Request Quote', 'quote-wc' ) : __( get_option( 'qwc_add_to_cart_button_text' ), 'quote-wc' ); // phpcs:ignore
+					}
+				}
 			}
 
 			return $cart_text;
@@ -720,6 +728,7 @@ if ( ! class_exists( 'Quotes_WC' ) ) {
 			$order = wc_get_order( $order_id );
 			$order->update_meta_data( '_quote_status', $quote_status );
 			$order->save();
+			do_action( 'qwc_update_quote_order_status', $order_id );
 		}
 
 		/**
