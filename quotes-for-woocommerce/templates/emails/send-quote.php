@@ -16,7 +16,7 @@ if ( $order ) :
 	<p>
 		<?php
 		// translators: Billing First Name.
-		echo sprintf( esc_html__( 'Hello %s', 'quote-wc' ), esc_attr( $billing_first_name ) );
+		echo esc_html( sprintf( __( 'Hello %s', 'quote-wc' ), esc_attr( $billing_first_name ) ) );
 		?>
 	</p>
 <?php endif; ?>
@@ -24,7 +24,7 @@ if ( $order ) :
 <p>
 	<?php
 	// translators: Site Name.
-	echo sprintf( esc_html__( 'You have received a quotation for your order on %s. The details of the same are shown below.', 'quote-wc' ), esc_attr( $order_details->blogname ) );
+	echo esc_html( sprintf( __( 'You have received a quotation for your order on %s. The details of the same are shown below.', 'quote-wc' ), esc_attr( $order_details->blogname ) ) );
 	?>
 </p>
 
@@ -37,7 +37,7 @@ if ( $order ) :
 		<p>
 			<?php
 			// translators: Payment Link Url.
-			echo sprintf( esc_html__( 'To pay for this order please use the following link: %s', 'quote-wc' ), '<a href="' . esc_url( $order->get_checkout_payment_url() ) . '">' . esc_html__( 'Pay for order', 'quote-wc' ) . '</a>' );
+			echo wp_kses_post( sprintf( __( 'To pay for this order please use the following link: %s', 'quote-wc' ), '<a href="' . esc_url( $order->get_checkout_payment_url() ) . '">' . esc_html__( 'Pay for order', 'quote-wc' ) . '</a>' ) );
 			?>
 		</p>
 	<?php endif; ?>
@@ -69,7 +69,7 @@ if ( $order ) :
 				case 'completed':
 					$args = array(
 						'show_download_links' => $downloadable,
-						'show_sku'            => false,
+						'show_sku'            => $show_sku,
 						'show_purchase_note'  => true,
 					);
 					if ( version_compare( WOOCOMMERCE_VERSION, '3.0.0' ) < 0 ) {
@@ -81,7 +81,7 @@ if ( $order ) :
 				case 'processing':
 					$args = array(
 						'show_download_links' => $downloadable,
-						'show_sku'            => true,
+						'show_sku'            => $show_sku,
 						'show_purchase_note'  => true,
 					);
 					if ( version_compare( WOOCOMMERCE_VERSION, '3.0.0' ) < 0 ) {
@@ -93,7 +93,7 @@ if ( $order ) :
 				default:
 					$args = array(
 						'show_download_links' => $downloadable,
-						'show_sku'            => true,
+						'show_sku'            => $show_sku,
 						'show_purchase_note'  => false,
 					);
 					if ( version_compare( WOOCOMMERCE_VERSION, '3.0.0' ) < 0 ) {
@@ -110,7 +110,7 @@ if ( $order ) :
 			if ( $order->get_order_item_totals() ) {
 				$i = 0;
 				foreach ( $order->get_order_item_totals() as $total ) {
-					$i++;
+					++$i;
 					?>
 						<tr>
 							<th scope="row" colspan="2" style="text-align:left; border: 1px solid #eee; 

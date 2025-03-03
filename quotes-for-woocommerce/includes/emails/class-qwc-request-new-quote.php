@@ -155,7 +155,6 @@ class QWC_Request_New_Quote extends WC_Email {
 
 		$order_obj->blogname = get_option( 'blogname' );
 		return $order_obj;
-
 	}
 
 	/**
@@ -172,6 +171,7 @@ class QWC_Request_New_Quote extends WC_Email {
 				'sent_to_admin' => true,
 				'plain_text'    => false,
 				'email'         => $this,
+				'show_sku'      => apply_filters( 'qwc_show_sku_email', true, $this->id ),
 			),
 			'quotes-for-wc/',
 			$this->template_base
@@ -205,7 +205,6 @@ class QWC_Request_New_Quote extends WC_Email {
 	 */
 	public function get_default_subject() {
 		return __( '[{blogname}] Quotation Request (Order {order_number}) - {order_date}', 'quote-wc' );
-
 	}
 
 	/**
@@ -263,7 +262,5 @@ class QWC_Request_New_Quote extends WC_Email {
 			),
 		);
 	}
-
 }
 return new QWC_Request_New_Quote();
-

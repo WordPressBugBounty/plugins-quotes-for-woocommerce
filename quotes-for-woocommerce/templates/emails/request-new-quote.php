@@ -21,7 +21,7 @@ if ( $order_details && $billing_first_name && $billing_last_name ) :
 	$order_id  = $order_details->order_id;
 	$order_url = qwc_is_hpos_enabled() ? admin_url( 'admin.php?page=wc-orders&id=' . $order_id . '&action=edit' ) : admin_url( 'post.php?post=' . $order_id . '&action=edit' );
 	?>
-	<p><?php echo sprintf( esc_html( $opening_paragraph ), esc_html( $billing_first_name . ' ' . $billing_last_name ) ); ?></p>
+	<p><?php echo esc_html( sprintf( $opening_paragraph, esc_attr( $billing_first_name . ' ' . $billing_last_name ) ) ); ?></p>
 <?php endif; ?>
 
 <?php do_action( 'woocommerce_email_before_order_table', $order, $sent_to_admin, $plain_text, $email ); ?>
@@ -38,11 +38,17 @@ if ( $order_details && $billing_first_name && $billing_last_name ) :
 		foreach ( $order->get_items() as $items ) {
 			$item_id    = $items->get_id();
 			$product_id = $items->get_variation_id() > 0 ? $items->get_variation_id() : $items->get_product_id();
+			$_product   = wc_get_product( $product_id );
+			$sku        = $_product ? $_product->get_sku() : '';
 			?>
 			<tr>
 				<td style="text-align:left; border: 1px solid #eee;">
 					<a href='<?php echo esc_url( get_permalink( $product_id ) ); ?>' target='_blank'><?php echo wp_kses_post( $items->get_name() ); ?></a>
+					<br />
 					<?php
+					if ( '' !== $sku && $show_sku ) {
+						echo wp_kses_post( esc_html__( 'SKU', 'quote-wc' ) . ': #' . $sku );
+					}
 					// allow other plugins to add additional product information here.
 					do_action( 'woocommerce_order_item_meta_start', $item_id, $items, $order, $plain_text );
 
@@ -76,7 +82,7 @@ if ( $order_details && $billing_first_name && $billing_last_name ) :
 <p>
 	<?php
 	// translators: Admin Url for order.
-	echo wp_kses_post( make_clickable( sprintf( __( 'You can view and edit this order in the dashboard here: %s', 'quote-wc' ), esc_url( $order_url ) ) ) );
+	echo wp_kses_post( make_clickable( sprintf( __( 'You can view and edit this order in the dashboard %s.', 'quote-wc' ), '<a href="' . esc_url( $order_url ) . '" target="_blanks">' . __( 'here', 'quote-wc' ) . '</a>' ) ) );
 	?>
 </p>
 <?php do_action( 'woocommerce_email_customer_details', $order, $sent_to_admin, $plain_text, $email ); ?>
