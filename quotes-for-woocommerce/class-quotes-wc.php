@@ -26,7 +26,7 @@ if ( ! class_exists( 'Quotes_WC' ) ) {
 		 * @var   string
 		 * @since 1.0.0
 		 */
-		public $version = '2.8';
+		public $version = '2.9';
 
 		/**
 		 * Class instance.
@@ -280,13 +280,15 @@ if ( ! class_exists( 'Quotes_WC' ) ) {
 
 			global $post;
 
-			$enable_quote = product_quote_enabled( $post->ID );
-			$enable_quote = apply_filters( 'qwc_hide_prices', $enable_quote, $post->ID );
-			if ( $enable_quote ) {
-				// Check if price should be displayed or no.
-				$display = get_post_meta( $post->ID, 'qwc_display_prices', true );
-				if ( ( isset( $display ) && 'on' !== $display ) || ! isset( $display ) ) {
-					$price = '';
+			if ( $post ) {
+				$enable_quote = product_quote_enabled( $post->ID );
+				$enable_quote = apply_filters( 'qwc_hide_prices', $enable_quote, $post->ID );
+				if ( $enable_quote ) {
+					// Check if price should be displayed or no.
+					$display = get_post_meta( $post->ID, 'qwc_display_prices', true );
+					if ( ( isset( $display ) && 'on' !== $display ) || ! isset( $display ) ) {
+						$price = '';
+					}
 				}
 			}
 			return $price;
@@ -301,21 +303,22 @@ if ( ! class_exists( 'Quotes_WC' ) ) {
 		public function qwc_change_button_text( $cart_text ) {
 
 			global $post;
-			$post_id = $post->ID;
-			if ( $post_id > 0 ) {
-				$product = wc_get_product( $post_id );
-				if ( $product ) {
-					// check product price.
-					$purchasable = $product->is_purchasable();
-					// check if setting is enabled.
-					$enable_quote = product_quote_enabled( $post_id );
+			if ( $post ) {
+				$post_id = $post->ID;
+				if ( $post_id > 0 ) {
+					$product = wc_get_product( $post_id );
+					if ( $product ) {
+						// check product price.
+						$purchasable = $product->is_purchasable();
+						// check if setting is enabled.
+						$enable_quote = product_quote_enabled( $post_id );
 
-					if ( $enable_quote && $purchasable ) {
-						$cart_text = '' === get_option( 'qwc_add_to_cart_button_text', '' ) ? esc_html__( 'Request Quote', 'quote-wc' ) : __( get_option( 'qwc_add_to_cart_button_text' ), 'quote-wc' ); // phpcs:ignore
+						if ( $enable_quote && $purchasable ) {
+							$cart_text = '' === get_option( 'qwc_add_to_cart_button_text', '' ) ? esc_html__( 'Request Quote', 'quote-wc' ) : __( get_option( 'qwc_add_to_cart_button_text' ), 'quote-wc' ); // phpcs:ignore
+						}
 					}
 				}
 			}
-
 			return $cart_text;
 		}
 
@@ -412,11 +415,12 @@ if ( ! class_exists( 'Quotes_WC' ) ) {
 		 * @since 1.0
 		 */
 		public function qwc_thankyou_css( $order_id ) {
-			$order        = wc_get_order( $order_id );
-			$quote_status = $order->get_meta( '_quote_status' );
-
-			if ( 'quote-pending' === $quote_status && ! qwc_order_display_price( $order ) ) {
-				wp_enqueue_style( 'qwc-frontend', plugins_url( '/assets/css/qwc-frontend.css', __FILE__ ), '', QUOTES_PLUGIN_VERSION, false );
+			$order = wc_get_order( $order_id );
+			if ( $order ) {
+				$quote_status = $order->get_meta( '_quote_status' );
+				if ( 'quote-pending' === $quote_status && ! qwc_order_display_price( $order ) ) {
+					wp_enqueue_style( 'qwc-frontend', plugins_url( '/assets/css/qwc-frontend.css', __FILE__ ), '', QUOTES_PLUGIN_VERSION, false );
+				}
 			}
 		}
 
@@ -726,9 +730,11 @@ if ( ! class_exists( 'Quotes_WC' ) ) {
 				$quote_status = 'quote-complete';
 			}
 			$order = wc_get_order( $order_id );
-			$order->update_meta_data( '_quote_status', $quote_status );
-			$order->save();
-			do_action( 'qwc_update_quote_order_status', $order_id );
+			if ( $order ) {
+				$order->update_meta_data( '_quote_status', $quote_status );
+				$order->save();
+				do_action( 'qwc_update_quote_order_status', $order_id );
+			}
 		}
 
 		/**
@@ -775,20 +781,22 @@ if ( ! class_exists( 'Quotes_WC' ) ) {
 			$quote_status = $order->get_meta( '_quote_status' );
 
 			if ( in_array( $order_status, apply_filters( 'qwc_edit_allowed_order_statuses_for_sending_quotes', array( 'pending' ) ), true ) ) {
-				if ( 'quote-pending' === $quote_status ) {
-					?>
-					<button id='qwc_quote_complete' type="button" class="button"><?php esc_html_e( 'Quote Complete', 'quote-wc' ); ?></button>
-					<?php
-				} else {
-					if ( 'quote-complete' === $quote_status ) {
-						$button_text = esc_html__( 'Send Quote', 'quote-wc' );
-					} elseif ( 'quote-sent' === $quote_status ) {
-						$button_text = esc_html__( 'Resend Quote', 'quote-wc' );
+				if ( isset( $quote_status ) && '' !== $quote_status ) {
+					if ( 'quote-pending' === $quote_status ) {
+						?>
+						<button id='qwc_quote_complete' type="button" class="button"><?php esc_html_e( 'Quote Complete', 'quote-wc' ); ?></button>
+						<?php
+					} else {
+						if ( 'quote-complete' === $quote_status ) {
+							$button_text = esc_html__( 'Send Quote', 'quote-wc' );
+						} elseif ( 'quote-sent' === $quote_status ) {
+							$button_text = esc_html__( 'Resend Quote', 'quote-wc' );
+						}
+						?>
+						<button id='qwc_send_quote' type="button" class="button"><?php echo esc_html( $button_text ); ?></button>
+						<text style='margin-left:0px; font-weight: bold; font-size: 20px;' type='hidden' id='qwc_msg'></text>
+						<?php
 					}
-					?>
-					<button id='qwc_send_quote' type="button" class="button"><?php echo esc_html( $button_text ); ?></button>
-					<text style='margin-left:0px; font-weight: bold; font-size: 20px;' type='hidden' id='qwc_msg'></text>
-					<?php
 				}
 			}
 		}
@@ -825,8 +833,10 @@ if ( ! class_exists( 'Quotes_WC' ) ) {
 		 */
 		public static function quote_status_update( $order_id, $_status ) {
 			$order = wc_get_order( $order_id );
-			$order->update_meta_data( '_quote_status', $_status );
-			$order->save();
+			if ( $order ) {
+				$order->update_meta_data( '_quote_status', $_status );
+				$order->save();
+			}
 		}
 
 		/**
@@ -964,7 +974,7 @@ if ( ! class_exists( 'Quotes_WC' ) ) {
 				$proceed_checkout_label = '' === get_option( 'qwc_proceed_checkout_btn_label', '' ) ? __( 'Proceed to Checkout', 'quote-wc' ) : get_option( 'qwc_proceed_checkout_btn_label' );
 				?>
 				<a href="<?php echo esc_url( wc_get_checkout_url() ); ?>" class="checkout-button button alt wc-forward<?php echo esc_attr( wc_wp_theme_get_element_class_name( 'button' ) ? ' ' . wc_wp_theme_get_element_class_name( 'button' ) : '' ); ?>">
-					<?php echo esc_html__( $proceed_checkout_label, 'quote-wc' ); ?>
+					<?php echo esc_html__( $proceed_checkout_label, 'quote-wc' ); // phpcs:ignore ?>
 				</a>
 				<?php
 			}
