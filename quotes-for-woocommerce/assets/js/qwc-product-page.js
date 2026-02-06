@@ -1,4 +1,4 @@
-jQuery( document ).ready( function() {
+jQuery( document ).ready( function($) {
 	
 	var obj = {
 		component_totals_changed_handler: function( component ) {
@@ -10,7 +10,7 @@ jQuery( document ).ready( function() {
 		}
 	};
 
-	jQuery( '.composite_data' ).on( 'wc-composite-initializing', function( event, composite ) {
+	$( '.composite_data' ).on( 'wc-composite-initializing', function( event, composite ) {
 		// Add actions for when component total is updated.
 		composite.actions.add_action( 'component_totals_changed', obj.component_totals_changed_handler, 999, obj );
 

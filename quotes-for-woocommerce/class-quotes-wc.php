@@ -26,7 +26,7 @@ if ( ! class_exists( 'Quotes_WC' ) ) {
 		 * @var   string
 		 * @since 1.0.0
 		 */
-		public $version = '2.10';
+		public $version = '2.11';
 
 		/**
 		 * Class instance.
@@ -183,6 +183,8 @@ if ( ! class_exists( 'Quotes_WC' ) ) {
 				update_option( 'qwc_menu_notice', 'dismissed' );
 			}
 			update_option( 'quotes_for_wc', QUOTES_PLUGIN_VERSION );
+			// Mark the gateway as enabled.
+			self::qwc_enable_gateway();
 		}
 
 		/**
@@ -205,6 +207,8 @@ if ( ! class_exists( 'Quotes_WC' ) ) {
 		 */
 		public function qwc_update_db_check() {
 			update_option( 'quotes_for_wc', QUOTES_PLUGIN_VERSION );
+			// Mark the gateway as enabled.
+			self::qwc_enable_gateway();
 		}
 
 		/**
@@ -494,7 +498,6 @@ if ( ! class_exists( 'Quotes_WC' ) ) {
 
 				if ( $product_id > 0 ) {
 					$enable_quote = product_quote_enabled( $product_id );
-
 					if ( $enable_quote ) {
 
 						wp_register_script( 'qwc-product-js', plugins_url( '/assets/js/qwc-product-page.js', __FILE__ ), '', QUOTES_PLUGIN_VERSION, array( 'in_footer' => true ) );
@@ -527,6 +530,34 @@ if ( ! class_exists( 'Quotes_WC' ) ) {
 					)
 				);
 				wp_enqueue_script( 'qwc-filter-js' );
+			}
+
+			// Include file on front end pages such as cart, checkout, order recieved and more.
+			if ( class_exists( 'WC_Product_Addons' ) ) {
+				if ( is_product() || is_cart() || is_checkout() ) {
+					$display_price_for_product = false;
+					if ( is_product() ) {
+						global $post;
+						$product_id                = isset( $post->ID ) ? $post->ID : 0;
+						$display_price_for_product = $product_id > 0 ? product_price_display( $product_id ) : false;
+						$product_quote_enabled     = product_quote_enabled( $product_id );
+					} else {
+						$product_quote_enabled = get_option( 'qwc_enable_global_quote' );
+					}
+					// enqueue script only if quotes are enabled at the product/global level.
+					if ( $product_quote_enabled ) {
+						wp_register_script( 'qwc-wcpa-compat-js', QUOTES_PLUGIN_URL . '/assets/js/qwc-product-addons-compat.js', array( 'jquery' ), QUOTES_PLUGIN_VERSION, array( 'in_footer' => false ) );
+						wp_localize_script(
+							'qwc-wcpa-compat-js',
+							'qwc_quote_params',
+							array(
+								'display_price_cart'    => qwc_cart_display_price(),
+								'display_price_product' => $display_price_for_product,
+							)
+						);
+						wp_enqueue_script( 'qwc-wcpa-compat-js' );
+					}
+				}
 			}
 		}
 
@@ -1139,6 +1170,21 @@ if ( ! class_exists( 'Quotes_WC' ) ) {
 						$payment_method_registry->register( new WC_Quotes_Gateway_Blocks_Support() );
 					}
 				);
+			}
+		}
+
+		/**
+		 * Enable the Ask for Quotes payment gateway.
+		 *
+		 * @since 2.11
+		 */
+		public static function qwc_enable_gateway() {
+
+			$settings = get_option( 'woocommerce_quotes-gateway_settings', array() );
+
+			if ( empty( $settings['enabled'] ) ) {
+				$settings['enabled'] = 'yes';
+				update_option( 'woocommerce_quotes-gateway_settings', $settings );
 			}
 		}
 	} // end of class
