@@ -62,9 +62,14 @@ class QWC_Send_Quote extends WC_Email {
 			$quote_status  = $this->object->get_meta( '_quote_status' );
 
 			// Allowed quote statuses.
-			$_status = array(
-				'quote-complete',
-				'quote-sent',
+			$_status = apply_filters(
+				'qwc_send_emails_for_quote_status',
+				array(
+					'quote-complete',
+					'quote-sent',
+					'quote-accept',
+					'quote-reject',
+				)
 			);
 
 			if ( in_array( $quote_status, $_status, true ) && $this->is_enabled() ) {
@@ -119,6 +124,7 @@ class QWC_Send_Quote extends WC_Email {
 				'plain_text'    => false,
 				'email'         => $this,
 				'show_sku'      => apply_filters( 'qwc_show_sku_email', false, $this->id ),
+				'show_image'    => apply_filters( 'qwc_show_product_image_email', false, $this->id ),
 			),
 			'quotes-for-wc/',
 			$this->template_base
@@ -140,6 +146,7 @@ class QWC_Send_Quote extends WC_Email {
 				'sent_to_admin' => false,
 				'plain_text'    => true,
 				'email'         => $this,
+				'show_sku'      => apply_filters( 'qwc_show_sku_email', false, $this->id ),
 			),
 			'quotes-for-wc/',
 			$this->template_base

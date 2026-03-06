@@ -26,7 +26,7 @@ if ( ! class_exists( 'Quotes_WC' ) ) {
 		 * @var   string
 		 * @since 1.0.0
 		 */
-		public $version = '2.11';
+		public $version = '2.12';
 
 		/**
 		 * Class instance.
@@ -60,12 +60,7 @@ if ( ! class_exists( 'Quotes_WC' ) ) {
 			add_filter( 'woocommerce_product_single_add_to_cart_text', array( &$this, 'qwc_change_button_text' ), 99, 1 );
 
 			// Hide price on the cart & checkout pages.
-			add_filter( 'wp_enqueue_scripts', array( &$this, 'qwc_css' ) );
-			// Hide Price on the Thank You page.
-			add_action( 'woocommerce_thankyou', array( &$this, 'qwc_thankyou_css' ), 10, 1 );
-
-			// Hide Price on the My Account->View Orders page.
-			add_action( 'woocommerce_view_order', array( &$this, 'qwc_thankyou_css' ), 10, 1 );
+			add_filter( 'wp_enqueue_scripts', array( &$this, 'qwc_css' ), 10 );
 			// Hide prices on the cart widget.
 			add_filter( 'woocommerce_cart_item_price', array( &$this, 'qwc_cart_widget_prices' ), 10, 2 );
 
@@ -280,7 +275,7 @@ if ( ! class_exists( 'Quotes_WC' ) ) {
 		 * @param object $product - WC Product Object.
 		 * @since 1.0
 		 */
-		public function qwc_remove_prices( $price, $product ) {
+		public function qwc_remove_prices( $price, $product ) { // phpcs:ignore
 
 			global $post;
 
@@ -336,7 +331,7 @@ if ( ! class_exists( 'Quotes_WC' ) ) {
 
 			if ( is_cart() || is_checkout() ) {
 				// Add css file only if cart contains products that require quotes.
-				if ( is_checkout_pay_page() || is_order_received_page() ) { // The file should not be enqueued if the order pay or order received page is loaded and quotation has been sent.
+				if ( is_checkout_pay_page() ) { // The file should not be enqueued if the order pay or order received page is loaded and quotation has been sent.
 					// Find the order ID and fetch the quote status.
 					$order_id = absint( get_query_var( 'order-pay' ) );
 					if ( is_numeric( $order_id ) && $order_id > 0 ) {
@@ -348,7 +343,7 @@ if ( ! class_exists( 'Quotes_WC' ) ) {
 							}
 						}
 					}
-				} elseif ( ( cart_contains_quotable() && ! qwc_cart_display_price() ) || ( 'on' === get_option( 'qwc_enable_global_quote', '' ) && 'on' !== get_option( 'qwc_enable_global_prices', '' ) ) ) {
+				} elseif ( cart_contains_quotable() && ! qwc_cart_display_price() ) {
 					// enqueue only if Pro is not active - needed as Pro has settings which makes it possible to override the global settings.
 					if ( ! class_exists( 'Quotes_WC_Pro' ) ) {
 						wp_enqueue_style( 'qwc-frontend', plugins_url( '/assets/css/qwc-frontend.css', __FILE__ ), '', QUOTES_PLUGIN_VERSION, false );
@@ -357,73 +352,41 @@ if ( ! class_exists( 'Quotes_WC' ) ) {
 			}
 
 			// Add css file only if cart contains products that require quotes.
-			if ( ! is_checkout_pay_page() && ! is_order_received_page() && ( ( cart_contains_quotable() && ! qwc_cart_display_price() ) || ( 'on' === get_option( 'qwc_enable_global_quote', '' ) && 'on' !== get_option( 'qwc_enable_global_prices', '' ) ) ) ) {
+			if ( ! is_checkout_pay_page() && ! is_order_received_page() && ( cart_contains_quotable() && ! qwc_cart_display_price() ) ) {
 				if ( ! class_exists( 'Quotes_WC_Pro' ) ) { // enqueue only if Pro is not active - needed as Pro has settings which makes it possible to override the global settings.
 					wp_enqueue_style( 'qwc-mini-cart', plugins_url( '/assets/css/qwc-shop.css', __FILE__ ), '', QUOTES_PLUGIN_VERSION, false );
 				}
 			}
 
 			// My Account page - Orders List.
-			if ( is_wc_endpoint_url( 'orders' ) ) {
-				global $wpdb;
-
-				$display = true;
-
-				// Check if any products allow for quotes.
-				$results_quotes = $wpdb->get_results( $wpdb->prepare( 'SELECT meta_value FROM `' . $wpdb->prefix . 'postmeta` WHERE meta_key = %s', 'qwc_enable_quotes' ) ); //phpcs:ignore
-
-				if ( isset( $results_quotes ) && count( $results_quotes ) > 0 ) {
-					$found = current(
-						array_filter(
-							$results_quotes,
-							function ( $value ) {
-								return isset( $value->meta_value ) && 'on' === $value->meta_value;
-							}
-						)
-					);
-
-					if ( isset( $found->meta_value ) && 'on' === $found->meta_value ) {
-						// if quote products are present, check if price display is set to on for any of them.
-						$results_price = $wpdb->get_results($wpdb->prepare( 'SELECT meta_value FROM `' . $wpdb->prefix . 'postmeta` WHERE meta_key = %s', 'qwc_display_prices' ) ); // phpcs:ignore
-
-						if ( isset( $results_price ) && count( $results_price ) > 0 ) {
-
-							$found_price = current(
-								array_filter(
-									$results_price,
-									function ( $value ) {
-										return isset( $value->meta_value ) && 'on' === $value->meta_value;
-									}
-								)
-							);
-
-							$display = ( isset( $found_price->meta_value ) && 'on' === $found_price->meta_value ) ? true : false;
-
-						} else {
-							$display = false;
+			if ( is_wc_endpoint_url( 'orders' ) && ( 'on' === get_option( 'qwc_enable_global_quote', '' ) && 'on' !== get_option( 'qwc_enable_global_prices', '' ) ) ) {
+				wp_enqueue_style( 'qwc-frontend', plugins_url( '/assets/css/qwc-frontend.css', __FILE__ ), '', QUOTES_PLUGIN_VERSION, false );
+			}
+			// My Account page - Thank you (Order Received) Page.
+			if ( is_order_received_page() ) {
+				$order_id = absint( get_query_var( 'order-received' ) );
+				if ( $order_id > 0 ) {
+					$_order = wc_get_order( $order_id );
+					if ( $_order ) {
+						$quote_status        = $_order->get_meta( '_quote_status' );
+						$display_order_price = qwc_order_display_price( $_order );
+						if ( 'quote-pending' === $quote_status && ! $display_order_price ) {
+							wp_enqueue_style( 'qwc-frontend', plugins_url( '/assets/css/qwc-frontend.css', __FILE__ ), '', QUOTES_PLUGIN_VERSION, false );
 						}
 					}
 				}
-
-				// Hide the prices.
-				if ( ! $display ) {
-					wp_enqueue_style( 'qwc-frontend', plugins_url( '/assets/css/qwc-frontend.css', __FILE__ ), '', QUOTES_PLUGIN_VERSION, false );
-				}
 			}
-		}
-
-		/**
-		 * Hide prices on the Thank You page.
-		 *
-		 * @param int $order_id - Order ID.
-		 * @since 1.0
-		 */
-		public function qwc_thankyou_css( $order_id ) {
-			$order = wc_get_order( $order_id );
-			if ( $order ) {
-				$quote_status = $order->get_meta( '_quote_status' );
-				if ( 'quote-pending' === $quote_status && ! qwc_order_display_price( $order ) ) {
-					wp_enqueue_style( 'qwc-frontend', plugins_url( '/assets/css/qwc-frontend.css', __FILE__ ), '', QUOTES_PLUGIN_VERSION, false );
+			// My Account > Orders > View Order page.
+			if ( is_wc_endpoint_url( 'view-order' ) ) {
+				$order_id = absint( get_query_var( 'view-order' ) );
+				if ( $order_id ) {
+					$order = wc_get_order( $order_id );
+					if ( $order ) {
+						$quote_status = $order->get_meta( '_quote_status' );
+						if ( 'quote-pending' === $quote_status && ! qwc_order_display_price( $order ) ) {
+							wp_enqueue_style( 'qwc-frontend', plugins_url( '/assets/css/qwc-frontend.css', __FILE__ ), '', QUOTES_PLUGIN_VERSION, false );
+						}
+					}
 				}
 			}
 		}
@@ -497,8 +460,9 @@ if ( ! class_exists( 'Quotes_WC' ) ) {
 				$product_id = isset( $post->ID ) ? $post->ID : 0;
 
 				if ( $product_id > 0 ) {
-					$enable_quote = product_quote_enabled( $product_id );
-					if ( $enable_quote ) {
+					$enable_quote  = product_quote_enabled( $product_id );
+					$display_price = product_price_display( $product_id );
+					if ( $enable_quote && ! $display_price ) {
 
 						wp_register_script( 'qwc-product-js', plugins_url( '/assets/js/qwc-product-page.js', __FILE__ ), '', QUOTES_PLUGIN_VERSION, array( 'in_footer' => true ) );
 
@@ -542,7 +506,7 @@ if ( ! class_exists( 'Quotes_WC' ) ) {
 						$display_price_for_product = $product_id > 0 ? product_price_display( $product_id ) : false;
 						$product_quote_enabled     = product_quote_enabled( $product_id );
 					} else {
-						$product_quote_enabled = get_option( 'qwc_enable_global_quote' );
+						$product_quote_enabled = cart_contains_quotable();
 					}
 					// enqueue script only if quotes are enabled at the product/global level.
 					if ( $product_quote_enabled ) {
@@ -819,11 +783,7 @@ if ( ! class_exists( 'Quotes_WC' ) ) {
 						<button id='qwc_quote_complete' type="button" class="button"><?php esc_html_e( 'Quote Complete', 'quote-wc' ); ?></button>
 						<?php
 					} else {
-						if ( 'quote-complete' === $quote_status ) {
-							$button_text = esc_html__( 'Send Quote', 'quote-wc' );
-						} elseif ( 'quote-sent' === $quote_status ) {
-							$button_text = esc_html__( 'Resend Quote', 'quote-wc' );
-						}
+						$button_text = 'quote-sent' === $quote_status ? esc_html__( 'Resend Quote', 'quote-wc' ) : esc_html__( 'Send Quote', 'quote-wc' );
 						?>
 						<button id='qwc_send_quote' type="button" class="button"><?php echo esc_html( $button_text ); ?></button>
 						<text style='margin-left:0px; font-weight: bold; font-size: 20px;' type='hidden' id='qwc_msg'></text>
@@ -839,7 +799,7 @@ if ( ! class_exists( 'Quotes_WC' ) ) {
 		 * @since 1.0
 		 */
 		public function qwc_update_status() {
-			if ( ! current_user_can( 'manage_woocommerce' ) || ! isset( $_POST['security_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['security_nonce'] ) ), 'qwc-update-status-security' ) ) {
+			if ( ! current_user_can( 'manage_woocommerce' ) || ! isset( $_POST['security_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['security_nonce'] ) ), 'qwc-update-status-security' ) ) { // phpcs:ignore
 				wp_send_json_error( 'Invalid security token sent.' );
 				wp_die();
 			}
@@ -878,7 +838,7 @@ if ( ! class_exists( 'Quotes_WC' ) ) {
 		 */
 		public function qwc_send_quote() {
 
-			if ( ! current_user_can( 'manage_woocommerce' ) || ! isset( $_POST['security_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['security_nonce'] ) ), 'qwc-send-quote-security' ) ) {
+			if ( ! current_user_can( 'manage_woocommerce' ) || ! isset( $_POST['security_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['security_nonce'] ) ), 'qwc-send-quote-security' ) ) { // phpcs:ignore
 				wp_send_json_error( 'Invalid security token sent.' );
 				wp_die();
 			}
@@ -911,6 +871,8 @@ if ( ! class_exists( 'Quotes_WC' ) ) {
 				$_status = array(
 					'quote-complete',
 					'quote-sent',
+					'quote-accept',
+					'quote-reject',
 				);
 
 				// Create an instance of the WC_Emails class , so emails are sent out to customers.
@@ -919,8 +881,10 @@ if ( ! class_exists( 'Quotes_WC' ) ) {
 					do_action( 'qwc_send_quote_notification', $order_id );
 				}
 
-				// Update the quote status.
-				$order->update_meta_data( '_quote_status', 'quote-sent' );
+				// Update the quote status only if it has not been accepted/rejected so far.
+				if ( ! in_array( $quote_status, array( 'quote-accept', 'quote-reject' ), true ) ) {
+					$order->update_meta_data( '_quote_status', 'quote-sent' );
+				}
 				// Add an order note.
 				$billing_email = $order->get_billing_email();
 				$note          = __( 'Quote email sent to ', 'quote-wc' ) . $billing_email;
@@ -1144,7 +1108,7 @@ if ( ! class_exists( 'Quotes_WC' ) ) {
 		 */
 		public function qwc_menu_notice_dismissed() {
 
-			if ( ! current_user_can( 'manage_woocommerce' ) || ! isset( $_POST['security'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['security'] ) ), 'qwc-dismiss' ) ) {
+			if ( ! current_user_can( 'manage_woocommerce' ) || ! isset( $_POST['security'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['security'] ) ), 'qwc-dismiss' ) ) { // phpcs:ignore
 				die( 'Security check' );
 			}
 
